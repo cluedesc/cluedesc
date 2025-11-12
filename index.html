@@ -1,0 +1,439 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Cognitive Fusion 30 — Мобильный трекер (v2)</title>
+<style>
+  body{background:#0f1115;color:#e6e6e6;font-family:-apple-system,system-ui,Segoe UI,Roboto,Inter,Arial,sans-serif;margin:0}
+  header{position:sticky;top:0;z-index:10;background:#11141b;border-bottom:1px solid #232838}
+  .wrap{padding:14px 14px 90px;max-width:980px;margin:0 auto}
+  h1{font-size:20px;margin:12px 14px}
+  nav{display:grid;grid-template-columns:repeat(5,1fr);gap:6px;padding:8px 14px 12px}
+  nav button{padding:10px;border-radius:12px;border:1px solid #283040;background:#131722;color:#e6e6e6}
+  nav button.active{outline:2px solid #9e7aff}
+  .card{background:#171a21;border:1px solid #232838;border-radius:12px;padding:14px;margin:10px 0}
+  .row{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:8px 0;border-bottom:1px dashed #2a2f3f}
+  .row:last-child{border-bottom:none}
+  .label{flex:1}
+  .muted{color:#a8a8a8;font-size:13px}
+  .controls{display:flex;gap:8px;flex-wrap:wrap}
+  .controls button{border-radius:10px;padding:8px 10px;border:1px solid #283040;background:#0f1420;color:#e6e6e6}
+  .progress{height:8px;background:#1f2432;border-radius:999px;overflow:hidden}
+  .progress>div{height:100%;background:#7ba0ff;width:0%}
+  .grid{display:grid;grid-template-columns:1fr;gap:10px}
+  @media (min-width:720px){.grid{grid-template-columns:1fr 1fr}}
+  input[type="date"],input[type="text"],select,textarea{width:100%;box-sizing:border-box;border-radius:10px;border:1px solid #2b3245;background:#121620;color:#e6e6e6;padding:10px}
+  textarea{min-height:80px}
+  footer{position:fixed;left:0;right:0;bottom:0;background:#0d1017;border-top:1px solid #232838;padding:10px 14px}
+  footer .bar{display:flex;gap:8px;justify-content:space-between}
+  footer a{flex:1;text-align:center;border-radius:10px;border:1px solid #283040;background:#121620;color:#e6e6e6;padding:10px;text-decoration:none}
+  .tag{font-size:12px;padding:3px 8px;border-radius:999px;border:1px solid #283040;background:#121620}
+  .day-header{display:flex;align-items:center;justify-content:space-between;gap:10px}
+  .checkbox{width:24px;height:24px;border-radius:8px;border:1px solid #384055;display:inline-flex;align-items:center;justify-content:center;cursor:pointer;background:#0f1420;color:#e6e6e6}
+  .checkbox.on{background:#1a2132;border-color:#556084}
+  .warn{color:#ffce6b;font-size:13px}
+</style>
+</head>
+<body>
+<header>
+  <h1>Cognitive Fusion 30 — Мобильный трекер (v2)</h1>
+  <nav>
+    <button id="tab-today" class="active">Сегодня</button>
+    <button id="tab-days">Дни</button>
+    <button id="tab-lumosity">Lumosity</button>
+    <button id="tab-reading">Чтение</button>
+    <button id="tab-review">Обзор</button>
+  </nav>
+</header>
+<div class="wrap">
+  <div id="storage-warning" class="warn" style="display:none;">Внимание: приватный режим/ограничения. Данные сохраняются только до перезагрузки.</div>
+  <section id="view-today">
+    <div class="card">
+      <div class="day-header">
+        <div>
+          <div id="today-title" style="font-weight:600;font-size:18px;">День 1</div>
+          <div class="muted" id="today-date">Дата: —</div>
+        </div>
+        <div class="controls">
+          <button id="btn-prev">◀</button>
+          <button id="btn-next">▶</button>
+        </div>
+      </div>
+      <div class="muted" style="margin-top:6px;">Установите дату старта и отмечайте чек-листы. Прогресс сохраняется автоматически на устройстве.</div>
+      <div class="controls" style="margin-top:10px;">
+        <label class="tag">Дата старта: <input type="date" id="start-date"></label>
+        <button id="btn-mark-all">Отметить всё</button>
+        <button id="btn-clear-all">Очистить</button>
+      </div>
+      <div class="progress" style="margin-top:12px;"><div id="today-progress"></div></div>
+    </div>
+    <div id="today-list" class="card"></div>
+  </section>
+
+  <section id="view-days" style="display:none;">
+    <div class="card">
+      <div class="controls">
+        <select id="day-picker"></select>
+        <button id="btn-open-day">Открыть</button>
+      </div>
+      <div class="muted" style="margin-top:6px;">Можно пролистывать дни. Все отметки сохраняются.</div>
+    </div>
+    <div id="days-container" class="grid"></div>
+  </section>
+
+  <section id="view-lumosity" style="display:none;">
+    <div class="card">
+      <div class="controls">
+        <input id="lumo-date" type="date">
+        <input id="lumo-game" type="text" placeholder="Игра">
+        <input id="lumo-score" type="text" placeholder="Счёт/уровень">
+      </div>
+      <div style="margin-top:8px;">
+        <textarea id="lumo-note" placeholder="Инсайт (1 мысль)"></textarea>
+      </div>
+      <div class="controls" style="margin-top:8px;">
+        <button id="lumo-add">Добавить запись</button>
+        <button id="lumo-clear">Очистить все</button>
+      </div>
+    </div>
+    <div id="lumo-list"></div>
+  </section>
+
+  <section id="view-reading" style="display:none;">
+    <div class="card">
+      <div class="controls">
+        <input id="read-date" type="date">
+        <input id="read-source" type="text" placeholder="Источник (книга/статья)">
+        <input id="read-pages" type="text" placeholder="Страницы">
+      </div>
+      <div class="grid" style="margin-top:8px;">
+        <textarea id="read-idea1" placeholder="Идея 1 (своими словами)"></textarea>
+        <textarea id="read-idea2" placeholder="Идея 2"></textarea>
+        <textarea id="read-idea3" placeholder="Идея 3"></textarea>
+      </div>
+      <div class="controls" style="margin-top:8px;">
+        <button id="read-add">Добавить запись</button>
+        <button id="read-clear">Очистить все</button>
+      </div>
+    </div>
+    <div id="read-list"></div>
+  </section>
+
+  <section id="view-review" style="display:none;">
+    <div class="card">
+      <div class="grid">
+        <div>
+          <div class="muted">Оцени по шкале 1–5</div>
+          <label>Концентрация: <select id="m-conc"></select></label>
+          <label>Ясность речи: <select id="m-speech"></select></label>
+          <label>Память: <select id="m-memory"></select></label>
+          <label>Энергия: <select id="m-energy"></select></label>
+          <label>Сон: <select id="m-sleep"></select></label>
+          <label>Дисциплина: <select id="m-discipline"></select></label>
+        </div>
+        <div>
+          <textarea id="m-insights" placeholder="3 инсайта"></textarea>
+          <textarea id="m-blocks" placeholder="Что мешало фокусу? Что меняю на следующей неделе?"></textarea>
+          <textarea id="m-next" placeholder="Что читать/делать дальше?"></textarea>
+        </div>
+      </div>
+      <div class="controls" style="margin-top:8px;">
+        <button id="m-save">Сохранить</button>
+        <button id="m-clear">Очистить</button>
+      </div>
+      <div class="muted" style="margin-top:6px;">Можно вести один обзор на неделю или несколько — как удобно.</div>
+    </div>
+
+    <div class="card">
+      <div class="controls">
+        <button id="btn-export">Экспорт данных</button>
+        <input type="file" id="import-file" accept="application/json" style="display:none;">
+        <button id="btn-import">Импорт данных</button>
+      </div>
+      <div class="muted" style="margin-top:6px;">Экспорт создаст JSON-файл прогресса; импорт восстановит всё.</div>
+    </div>
+  </section>
+</div>
+
+<footer>
+  <div class="bar">
+    <a href="#" id="tip-a2hs">Добавить на экран домой</a>
+    <a href="#" id="tip-acrobat">PDF чеклисты</a>
+  </div>
+</footer>
+
+<script>
+var activities = ["Утро: тишина/дыхание 2 мин", "Утро: логическая разминка 5 мин", "Утро: дневник 8 мин", "День: чтение 20–25 стр.", "День: 3 идеи своими словами", "День: mind map", "Вечер: монолог 1–2 мин", "Вечер: мини-эссе (5 предложений)", "Вечер: мини-дебаты", "Прогулка 15–20 мин", "Lumosity 10 мин", "Сон 7–8 часов", "Короткие видео ≤ 30 мин"];
+var daysCount = 30;
+
+// Storage with fallback (for Private mode)
+var storageOK = true;
+function getStorage() {
+  try {
+    var testKey = '__cf30test__';
+    localStorage.setItem(testKey, '1');
+    localStorage.removeItem(testKey);
+    return localStorage;
+  } catch(e) {
+    storageOK = false;
+    return {
+      _mem: {},
+      getItem: function(k){ return this._mem[k] || null; },
+      setItem: function(k,v){ this._mem[k] = v; },
+      removeItem: function(k){ delete this._mem[k]; }
+    };
+  }
+}
+var LS = getStorage();
+if (!storageOK) document.getElementById('storage-warning').style.display = 'block';
+
+function $(sel){ return document.querySelector(sel); }
+
+function loadState() {
+  try {
+    var raw = LS.getItem('cf30-state') || '{}';
+    return JSON.parse(raw);
+  } catch(e) { return {}; }
+}
+function saveState() {
+  LS.setItem('cf30-state', JSON.stringify(state));
+}
+
+var state = loadState();
+if (!state.days) state.days = Array(daysCount).fill(0).map(function(){ return activities.map(function(){return false;}); });
+if (!state.startDate) state.startDate = null;
+if (!state.lumosity) state.lumosity = [];
+if (!state.reading) state.reading = [];
+if (!state.metrics) state.metrics = { conc:'', speech:'', memory:'', energy:'', sleep:'', discipline:'', insights:'', blocks:'', next:'' };
+
+function showTab(key){
+  var tabs = ['today','days','lumosity','reading','review'];
+  for (var i=0;i<tabs.length;i++){
+    var k = tabs[i];
+    document.getElementById('view-'+k).style.display = (k===key)?'block':'none';
+    document.getElementById('tab-'+k).classList.toggle('active', k===key);
+  }
+  if (key==='today') renderToday();
+  if (key==='days') renderDays();
+  if (key==='lumosity') renderLumosity();
+  if (key==='reading') renderReading();
+  if (key==='review') renderMetrics();
+}
+document.getElementById('tab-today').onclick = function(){ showTab('today'); };
+document.getElementById('tab-days').onclick = function(){ showTab('days'); };
+document.getElementById('tab-lumosity').onclick = function(){ showTab('lumosity'); };
+document.getElementById('tab-reading').onclick = function(){ showTab('reading'); };
+document.getElementById('tab-review').onclick = function(){ showTab('review'); };
+
+function toDateString(d){
+  if (!d) return '—';
+  var dt = new Date(d);
+  return dt.toLocaleDateString('ru-RU');
+}
+function getDayIndexByToday(){
+  if (!state.startDate) return 0;
+  var start = new Date(state.startDate);
+  var now = new Date();
+  start.setHours(0,0,0,0);
+  now.setHours(0,0,0,0);
+  var diff = Math.floor((now - start)/86400000);
+  if (diff < 0) diff = 0;
+  if (diff > daysCount-1) diff = daysCount-1;
+  return diff;
+}
+
+var currentDayIndex = 0;
+function renderToday(){
+  if (state.startDate && currentDayIndex===0) currentDayIndex = getDayIndexByToday();
+  var dayNum = currentDayIndex + 1;
+  document.getElementById('today-title').textContent = 'День ' + dayNum;
+  document.getElementById('today-date').textContent = 'Дата: ' + toDateString(state.startDate);
+  var sd = state.days[currentDayIndex];
+
+  var container = document.getElementById('today-list');
+  container.innerHTML = '';
+  var done = 0;
+  for (var i=0;i<activities.length;i++){
+    var name = activities[i];
+    var row = document.createElement('div'); row.className='row';
+    var lbl = document.createElement('div'); lbl.className='label'; lbl.textContent = name;
+    var box = document.createElement('div'); box.className='checkbox' + (sd[i] ? ' on' : '');
+    (function(idx){
+      box.onclick = function(){
+        sd[idx] = !sd[idx]; saveState(); renderToday();
+      };
+    })(i);
+    if (sd[i]) { box.textContent = '✓'; done++; } else { box.textContent = ''; }
+    row.appendChild(lbl); row.appendChild(box); container.appendChild(row);
+  }
+  var pct = Math.round(100 * done / activities.length);
+  document.getElementById('today-progress').style.width = pct + '%';
+  document.getElementById('start-date').value = state.startDate || '';
+}
+document.getElementById('start-date').onchange = function(e){
+  state.startDate = e.target.value || null; saveState(); renderToday();
+};
+document.getElementById('btn-prev').onclick = function(){ currentDayIndex = Math.max(0, currentDayIndex-1); renderToday(); };
+document.getElementById('btn-next').onclick = function(){ currentDayIndex = Math.min(daysCount-1, currentDayIndex+1); renderToday(); };
+document.getElementById('btn-mark-all').onclick = function(){
+  state.days[currentDayIndex] = activities.map(function(){return true;}); saveState(); renderToday();
+};
+document.getElementById('btn-clear-all').onclick = function(){
+  state.days[currentDayIndex] = activities.map(function(){return false;}); saveState(); renderToday();
+};
+
+function renderDays(){
+  var picker = document.getElementById('day-picker');
+  picker.innerHTML = '';
+  for (var i=1;i<=daysCount;i++){
+    var opt = document.createElement('option'); opt.value = i-1; opt.textContent = 'День ' + i; picker.appendChild(opt);
+  }
+  picker.value = currentDayIndex;
+  document.getElementById('btn-open-day').onclick = function(){ currentDayIndex = parseInt(picker.value,10); showTab('today'); };
+
+  var grid = document.getElementById('days-container'); grid.innerHTML = '';
+  for (var d=0; d<daysCount; d++){
+    var card = document.createElement('div'); card.className='card';
+    var head = document.createElement('div'); head.className='day-header';
+    var title = document.createElement('div'); title.innerHTML = '<strong>День ' + (d+1) + '</strong>';
+    var open = document.createElement('button'); open.textContent = 'Открыть';
+    (function(dd){ open.onclick = function(){ currentDayIndex = dd; showTab('today'); }; })(d);
+    head.appendChild(title); head.appendChild(open); card.appendChild(head);
+    var done = state.days[d].filter(function(x){return x;}).length;
+    var bar = document.createElement('div'); bar.className='progress'; var inner = document.createElement('div'); inner.style.width = (100*done/activities.length)+'%'; bar.appendChild(inner);
+    card.appendChild(bar);
+    var p = document.createElement('div'); p.className='muted'; p.textContent = done + ' / ' + activities.length + ' выполнено'; card.appendChild(p);
+    grid.appendChild(card);
+  }
+}
+
+function renderLumosity(){
+  var list = document.getElementById('lumo-list'); list.innerHTML = '';
+  var arr = (state.lumosity||[]).slice().reverse();
+  for (var i=0;i<arr.length;i++){
+    var item = arr[i];
+    var card = document.createElement('div'); card.className='card';
+    var top = document.createElement('div'); top.innerHTML = '<strong>'+(item.date||'—')+'</strong> · '+(item.game||'Игра')+' · '+(item.score||'—');
+    var note = document.createElement('div'); note.className='muted'; note.style.marginTop='6px'; note.textContent = item.note||'';
+    card.appendChild(top); card.appendChild(note); list.appendChild(card);
+  }
+}
+document.getElementById('lumo-add').onclick = function(){
+  var it = {
+    date: document.getElementById('lumo-date').value,
+    game: document.getElementById('lumo-game').value,
+    score: document.getElementById('lumo-score').value,
+    note: document.getElementById('lumo-note').value
+  };
+  state.lumosity.push(it); saveState();
+  document.getElementById('lumo-date').value=''; document.getElementById('lumo-game').value=''; document.getElementById('lumo-score').value=''; document.getElementById('lumo-note').value='';
+  renderLumosity();
+};
+document.getElementById('lumo-clear').onclick = function(){
+  if (confirm('Удалить все записи Lumosity?')) { state.lumosity = []; saveState(); renderLumosity(); }
+};
+
+function renderReading(){
+  var list = document.getElementById('read-list'); list.innerHTML = '';
+  var arr = (state.reading||[]).slice().reverse();
+  for (var i=0;i<arr.length;i++){
+    var r = arr[i];
+    var card = document.createElement('div'); card.className='card';
+    var top = document.createElement('div'); top.innerHTML = '<strong>'+(r.date||'—')+'</strong> · '+(r.source||'Источник')+' · стр.: '+(r.pages||'—');
+    var ideas = document.createElement('div'); ideas.className='muted'; ideas.style.marginTop='6px';
+    var txt = 'Идеи:\n' + (r.idea1||''); if (r.idea2) txt += '\n'+r.idea2; if (r.idea3) txt += '\n'+r.idea3;
+    ideas.textContent = txt;
+    card.appendChild(top); card.appendChild(ideas); list.appendChild(card);
+  }
+}
+document.getElementById('read-add').onclick = function(){
+  var it = {
+    date: document.getElementById('read-date').value,
+    source: document.getElementById('read-source').value,
+    pages: document.getElementById('read-pages').value,
+    idea1: document.getElementById('read-idea1').value,
+    idea2: document.getElementById('read-idea2').value,
+    idea3: document.getElementById('read-idea3').value
+  };
+  state.reading.push(it); saveState();
+  document.getElementById('read-date').value=''; document.getElementById('read-source').value=''; document.getElementById('read-pages').value='';
+  document.getElementById('read-idea1').value=''; document.getElementById('read-idea2').value=''; document.getElementById('read-idea3').value='';
+  renderReading();
+};
+document.getElementById('read-clear').onclick = function(){
+  if (confirm('Удалить все записи чтения?')) { state.reading = []; saveState(); renderReading(); }
+};
+
+function setOptions1to5(id, value){
+  var el = document.getElementById(id); el.innerHTML = '';
+  var empty = document.createElement('option'); empty.value=''; empty.textContent=''; el.appendChild(empty);
+  for (var v=1; v<=5; v++){
+    var o = document.createElement('option'); o.value=String(v); o.textContent=String(v); if (String(value)===String(v)) o.selected = true; el.appendChild(o);
+  }
+}
+function renderMetrics(){
+  setOptions1to5('m-conc', state.metrics.conc);
+  setOptions1to5('m-speech', state.metrics.speech);
+  setOptions1to5('m-memory', state.metrics.memory);
+  setOptions1to5('m-energy', state.metrics.energy);
+  setOptions1to5('m-sleep', state.metrics.sleep);
+  setOptions1to5('m-discipline', state.metrics.discipline);
+  document.getElementById('m-insights').value = state.metrics.insights||'';
+  document.getElementById('m-blocks').value = state.metrics.blocks||'';
+  document.getElementById('m-next').value = state.metrics.next||'';
+}
+document.getElementById('m-save').onclick = function(){
+  state.metrics.conc = document.getElementById('m-conc').value;
+  state.metrics.speech = document.getElementById('m-speech').value;
+  state.metrics.memory = document.getElementById('m-memory').value;
+  state.metrics.energy = document.getElementById('m-energy').value;
+  state.metrics.sleep = document.getElementById('m-sleep').value;
+  state.metrics.discipline = document.getElementById('m-discipline').value;
+  state.metrics.insights = document.getElementById('m-insights').value;
+  state.metrics.blocks = document.getElementById('m-blocks').value;
+  state.metrics.next = document.getElementById('m-next').value;
+  saveState(); alert('Сохранено');
+};
+document.getElementById('m-clear').onclick = function(){
+  if (confirm('Очистить метрики/обзор?')) {
+    state.metrics = { conc:'', speech:'', memory:'', energy:'', sleep:'', discipline:'', insights:'', blocks:'', next:'' };
+    saveState(); renderMetrics();
+  }
+};
+
+document.getElementById('btn-export').onclick = function(){
+  var data = JSON.stringify(state);
+  var blob = new Blob([data], {type:'application/json'});
+  var url = URL.createObjectURL(blob);
+  var a = document.createElement('a'); a.href = url; a.download = 'cf30_export.json'; document.body.appendChild(a); a.click();
+  setTimeout(function(){ URL.revokeObjectURL(url); a.remove(); }, 0);
+};
+document.getElementById('btn-import').onclick = function(){ document.getElementById('import-file').click(); };
+document.getElementById('import-file').addEventListener('change', function(e){
+  var f = e.target.files[0]; if (!f) return;
+  var reader = new FileReader();
+  reader.onload = function(){
+    try {
+      var obj = JSON.parse(reader.result);
+      if (obj && obj.days){ state = obj; saveState(); showTab('today'); alert('Импортировано'); }
+      else alert('Файл не распознан');
+    } catch(err){ alert('Ошибка импорта'); }
+  };
+  reader.readAsText(f);
+});
+
+document.getElementById('tip-a2hs').onclick = function(e){
+  e.preventDefault();
+  alert('Добавление на экран домой:\n\n• iOS (Safari): Поделиться → На экран Домой.\n• Android (Chrome): ⋮ → Добавить на главный экран.');
+};
+document.getElementById('tip-acrobat').onclick = function(e){
+  e.preventDefault();
+  alert('Для PDF отметок используйте Adobe Acrobat / Xodo: режим Fill & Sign, галочки и текст.');
+};
+
+// Init
+showTab('today');
+</script>
+</body>
+</html>
